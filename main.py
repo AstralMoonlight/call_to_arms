@@ -4,8 +4,8 @@
 Archivo principal del proyecto Call to Arms.
 
 Este script conecta con Binance Futures Testnet, obtiene velas recientes,
-convierte los datos en un DataFrame de pandas, y calcula el RSI (Relative Strength Index).
-Se utiliza como punto de entrada para análisis y pruebas de señales técnicas.
+convierte los datos en un DataFrame, y calcula indicadores técnicos (RSI y SMA).
+Es el punto de entrada para el análisis.
 
 Autor: Ioni (AstralMoonlight)
 Fecha: 2025-05-22
@@ -14,17 +14,9 @@ Fecha: 2025-05-22
 import pandas as pd
 from broker_api.binance import obtener_klines
 from indicators.rsi import calcular_rsi
+from indicators.sma import calcular_sma
 
 def parsear_klines_a_df(raw_klines):
-    """
-    Convierte una lista de klines en un DataFrame con columnas estándar.
-
-    Parámetros:
-    - raw_klines (list): Lista cruda de velas devuelta por Binance.
-
-    Retorna:
-    - pd.DataFrame: DataFrame con columnas ['timestamp', 'open', 'high', 'low', 'close', 'volume']
-    """
     columnas = ['timestamp', 'open', 'high', 'low', 'close', 'volume']
     datos = [
         {
@@ -49,7 +41,10 @@ def main():
     print("[📈] Calculando RSI...")
     df["RSI"] = calcular_rsi(df)
 
-    print(df[["timestamp", "close", "RSI"]].tail(10))  # Mostrar las últimas 10 filas
+    print("[📊] Calculando SMA25 y SMA75...")
+    df = calcular_sma(df, corto=25, largo=75)
+
+    print(df[["timestamp", "close", "RSI", "SMA25", "SMA75"]].tail(10))  # Últimas 10 filas
 
 if __name__ == "__main__":
     main()
