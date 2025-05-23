@@ -10,42 +10,22 @@ Autor: Ioni (AstralMoonlight)
 Fecha: 2025-05-22
 """
 
+import pandas as pd
 from config.config import (
     SMA_CORTO_LABEL,
     SMA_LARGO_LABEL,
     RSI_COMPRA,
     RSI_VENTA,
+    ADX_MINIMO
 )
 
-def determinar_senal(df):
-    """
-    Determina la señal basada en la última fila del DataFrame.
-
-    Condiciones:
-    - Señal de COMPRA si:
-        RSI < RSI_COMPRA
-        SMA_corto cruza sobre SMA_largo
-        Volumen actual > volumen promedio
-
-    - Señal de VENTA si:
-        RSI > RSI_VENTA
-        SMA_corto cruza bajo SMA_largo
-        Volumen actual > volumen promedio
-
-    - Señal de MANTENER o SIN VOLUMEN en otros casos.
-
-    Parámetros:
-    - df (pd.DataFrame): debe contener columnas RSI, SMA_corto, SMA_largo, volume y vol_prom.
-
-    Retorna:
-    - str: señal correspondiente
-    """
+def determinar_señales(df, debug=False):
     if len(df) < 2:
-        return "⚪ Insuficiente"
+        return False, False
 
-    required_cols = {"RSI", SMA_CORTO_LABEL, SMA_LARGO_LABEL, "volume", "vol_prom"}
-    if not required_cols.issubset(df.columns):
-        return "⚪ Faltan columnas necesarias"
+    required = {"RSI", SMA_CORTO_LABEL, SMA_LARGO_LABEL, "volume", "vol_prom", "ADX"}
+    if not required.issubset(df.columns):
+        return False, False
 
     actual = df.iloc[-1]
     anterior = df.iloc[-2]
@@ -55,16 +35,23 @@ def determinar_senal(df):
     sma_l = actual[SMA_LARGO_LABEL]
     sma_c_prev = anterior[SMA_CORTO_LABEL]
     sma_l_prev = anterior[SMA_LARGO_LABEL]
-
     volumen = actual["volume"]
     volumen_prom = actual["vol_prom"]
+    adx = actual["ADX"]
 
-    if volumen < volumen_prom:
-        return "⚪ Sin volumen suficiente"
+    vol_ok = volumen > volumen_prom
+    adx_ok = pd.notna(adx) and adx >= ADX_MINIMO
 
-    if rsi < RSI_COMPRA and sma_c > sma_l and sma_c_prev <= sma_l_prev:
-        return "🟢 Compra"
-    elif rsi > RSI_VENTA and sma_c < sma_l and sma_c_prev >= sma_l_prev:
-        return "🔴 Venta"
-    else:
-        return "⚪ Mantener"
+    long_cond = rsi < RSI_COMPRA and sma_c > sma_l and sma_c_prev <= sma_l_prev
+    short_cond = rsi > RSI_VENTA and sma_c < sma_l and sma_c_prev >= sma_l_prev
+
+    if debug:
+        print("\n🔍 Evaluación de condiciones:")
+        print(f"RSI = {rsi:.2f} → Long < {RSI_COMPRA}, Short > {RSI_VENTA}")
+        print(f"SMA cruce: {sma_c_prev:.2f} → {sma_c:.2f} vs {sma_l_prev:.2f} → {sma_l:.2f}")
+        print(f"Volumen actual: {volumen:.2f}, promedio: {volumen_prom:.2f} → {'✅' if vol_ok else '❌'}")
+        print(f"ADX = {adx:.2f} (mínimo requerido: {ADX_MINIMO}) → {'✅' if adx_ok else '❌'}")
+        print(f"Long válido: {'✅' if (long_cond and vol_ok and adx_ok) else '❌'}")
+        print(f"Short válido: {'✅' if (short_cond and vol_ok and adx_ok) else '❌'}")
+
+    return (long_cond and vol_ok and adx_ok), (short_cond and vol_ok and adx_ok)
